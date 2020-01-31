@@ -34,6 +34,9 @@ uint32_t colour_room;
 // So we can actually connect to things
 HTTPClient http;
 
+// Here's the room URL we hit up for the data
+String ROOM_JSON_URL = (String) "https://" + ROOMS_DASHBOARD_HOST + "/room/" + ROOM_SLUG + ".json?compact=true";
+
 const size_t capacity = 2000;  // Use https://arduinojson.org/v6/assistant/ to calculate this, then round up for sanity
 DynamicJsonDocument doc(capacity);
 
@@ -121,7 +124,7 @@ void update_from_server()
 
   Serial.println("Updating data from server");
   
-  http.begin(ROOM_JSON_URL);
+  http.begin(ROOM_JSON_URL, ROOMS_DASHBOARD_SHA1_FINGERPRINT);
 
   int httpCode = http.GET();
 
