@@ -26,6 +26,7 @@
 unsigned long current_clock;
 unsigned long last_data_update_clock = 0;
 unsigned long last_light_refresh_clock = 0;
+unsigned int current_data_update_interval;
 
 // Set up the pixels and the room colour variable
 Adafruit_NeoPixel pixels(NUMPIXELS, PIN, NEO_GRB + NEO_KHZ800);
@@ -141,6 +142,8 @@ void update_from_server()
   
     if (enable_presence_device)
     {
+
+      current_data_update_interval = DATA_UPDATE_INTERVAL;
   
       // Pluck the pretty colour for the room from the JSON
       JsonArray colour = doc["colour"];
@@ -210,6 +213,7 @@ void update_from_server()
     else
     {
       Serial.println("Asleep.");
+      current_data_update_interval = SLEEP_DATA_UPDATE_INTERVAL;
       set_top_pulsing(false);
       set_base_colour(COLOUR_OFF);
       set_top_colour(COLOUR_STANDBY);
@@ -275,7 +279,7 @@ void loop() {
 
   update_lights();
 
-  if (current_clock - last_data_update_clock >= DATA_UPDATE_INTERVAL) {
+  if (current_clock - last_data_update_clock >= current_data_update_interval) {
     update_from_server();
     last_data_update_clock = current_clock;
   }
