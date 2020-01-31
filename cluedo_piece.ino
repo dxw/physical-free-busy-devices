@@ -15,6 +15,7 @@
 #define COLOUR_WIFI_CONNECTING  pixels.Color(255, 0, 255)
 #define COLOUR_WIFI_CONNECTED   pixels.Color(0, 255, 0)
 #define COLOUR_STANDBY          pixels.Color(50, 50, 100)
+#define COLOUR_ERROR            pixels.Color(255, 0, 0)
 
 #define COLOUR_AVAILABLE          pixels.Color(0, 255, 0)
 #define COLOUR_BUSY_SOON          pixels.Color(255, 191, 0)
@@ -131,89 +132,97 @@ void update_from_server()
     json = http.getString();
     Serial.println(json);
     deserializeJson(doc, json);
-   
+
+    // Should we even be switched on?
+    enable_presence_device = doc["enable_presence_device"];
+  
+    if (enable_presence_device)
+    {
+  
+      // Pluck the pretty colour for the room from the JSON
+      JsonArray colour = doc["colour"];
+      room_colour_r = colour[0];
+      room_colour_g = colour[1];
+      room_colour_b = colour[2];
+      colour_room = pixels.Color(room_colour_r, room_colour_g, room_colour_b);
+    
+      // Set the base colour
+      set_base_colour(colour_room);
+  
+      // Some logic about what colour to actually be
+  
+      empty = doc["empty"];
+      minutes_to_next_event = doc["minutes_to_next_event"];
+      minutes_to_end_of_event = doc["minutes_to_end_of_event"];
+      upcoming_event_today = doc["upcoming_event_today"];
+  
+      // First of all, are we empty?
+      if (empty)
+      {
+        Serial.println("Room currently empty.");
+        set_top_pulsing(false);
+        
+        // If there an event starting soon?
+        if (upcoming_event_today and minutes_to_next_event <= MINUTES_BEFORE_BUSY_TO_WARN)
+        {
+          Serial.println("Event starting soon.");
+          set_top_colour(COLOUR_BUSY_SOON);
+        }
+        else
+        {
+          Serial.println("No event starting soon.");
+          set_top_colour(COLOUR_AVAILABLE);
+        }
+      }
+      // We're not empty, so apply the 'room busy' logic
+      else
+      {
+        Serial.println("Room currently occupied.");
+        // Is the end of the event soon?
+        if (minutes_to_end_of_event <= MINUTES_BEFORE_END_OF_MEETING_TO_WARN)
+        {
+          Serial.println("Current event ending soon.");
+          set_top_colour(COLOUR_MEETING_ENDS_SOON);
+  
+          // Is there another event coming up soon?
+          if (upcoming_event_today and minutes_to_next_event <= MINUTES_BEFORE_BUSY_TO_WARN)
+          {
+            Serial.println("Other event starting soon.");
+            set_top_pulsing(true);
+          }
+          else
+          {
+            Serial.println("No other event starting soon.");
+            set_top_pulsing(false);
+          }
+        }
+        else{
+          Serial.println("Current event not ending soon.");
+          set_top_pulsing(false);
+          set_top_colour(COLOUR_BUSY);
+          upcoming_event_today;
+        }
+      }
+    }
+    else
+    {
+      Serial.println("Asleep.");
+      set_top_pulsing(false);
+      set_base_colour(COLOUR_OFF);
+      set_top_colour(COLOUR_STANDBY);
+    }
+  
+  }
+  else
+  {
+    Serial.println("Unable to get data.");
+    set_top_pulsing(true);
+    set_base_colour(COLOUR_OFF);
+    set_top_colour(COLOUR_ERROR);
   }
    
   http.end();
 
-  // Should we even be switched on?
-  enable_presence_device = doc["enable_presence_device"];
-
-  if (enable_presence_device)
-  {
-
-    // Pluck the pretty colour for the room from the JSON
-    JsonArray colour = doc["colour"];
-    room_colour_r = colour[0];
-    room_colour_g = colour[1];
-    room_colour_b = colour[2];
-    colour_room = pixels.Color(room_colour_r, room_colour_g, room_colour_b);
-  
-    // Set the base colour
-    set_base_colour(colour_room);
-
-    // Some logic about what colour to actually be
-
-    empty = doc["empty"];
-    minutes_to_next_event = doc["minutes_to_next_event"];
-    minutes_to_end_of_event = doc["minutes_to_end_of_event"];
-    upcoming_event_today = doc["upcoming_event_today"];
-
-    // First of all, are we empty?
-    if (empty)
-    {
-      Serial.println("Room currently empty.");
-      set_top_pulsing(false);
-      
-      // If there an event starting soon?
-      if (upcoming_event_today and minutes_to_next_event <= MINUTES_BEFORE_BUSY_TO_WARN)
-      {
-        Serial.println("Event starting soon.");
-        set_top_colour(COLOUR_BUSY_SOON);
-      }
-      else
-      {
-        Serial.println("No event starting soon.");
-        set_top_colour(COLOUR_AVAILABLE);
-      }
-    }
-    // We're not empty, so apply the 'room busy' logic
-    else
-    {
-      Serial.println("Room currently occupied.");
-      // Is the end of the event soon?
-      if (minutes_to_end_of_event <= MINUTES_BEFORE_END_OF_MEETING_TO_WARN)
-      {
-        Serial.println("Current event ending soon.");
-        set_top_colour(COLOUR_MEETING_ENDS_SOON);
-
-        // Is there another event coming up soon?
-        if (upcoming_event_today and minutes_to_next_event <= MINUTES_BEFORE_BUSY_TO_WARN)
-        {
-          Serial.println("Other event starting soon.");
-          set_top_pulsing(true);
-        }
-        else
-        {
-          Serial.println("No other event starting soon.");
-          set_top_pulsing(false);
-        }
-      }
-      else{
-        Serial.println("Current event not ending soon.");
-        set_top_pulsing(false);
-        set_top_colour(COLOUR_BUSY);
-        upcoming_event_today;
-      }
-    }
-  }
-  else
-  {
-    Serial.println("Asleep.");
-    set_top_pulsing(false);
-    set_base_colour(COLOUR_OFF);
-    set_top_colour(COLOUR_STANDBY);
-  }
 }
 
 void setup()
