@@ -38,7 +38,7 @@ HTTPClient http;
 // Here's the room URL we hit up for the data
 String ROOM_JSON_URL = (String) "https://" + ROOMS_DASHBOARD_HOST + "/room/" + ROOM_SLUG + ".json?compact=true";
 
-const size_t capacity = 2000;  // Use https://arduinojson.org/v6/assistant/ to calculate this, then round up for sanity
+const size_t capacity = 2000;  // Use https://arduinojson.org/v6/assistant/ to calculate this, then round up to give an error margin
 DynamicJsonDocument doc(capacity);
 
 // Declare things we use from the JSON
@@ -84,9 +84,9 @@ void update_lights()
 
   if (current_clock - last_light_refresh_clock >= LIGHT_UPDATE_INTERVAL)
   {
-    
+
     float SpeedFactor = 0.008; // I don't actually know what would look good
-  
+
     if (light_top_pulse)
     {
       float intensity_r = top_colour_r / 2.0 * (1.0 + sin(SpeedFactor * fade_step));
@@ -100,9 +100,9 @@ void update_lights()
     }
 
     pixels.fill(base_colour, 0, 12);
-    
+
     pixels.setPixelColor(12, top_colour);
-    
+
     pixels.show();
 
     if (fade_step < 65535)
@@ -115,16 +115,16 @@ void update_lights()
     }
 
     last_light_refresh_clock = current_clock;
-    
+
   }
-  
+
 }
 
 void update_from_server()
 {
 
   Serial.println("Updating data from server");
-  
+
   http.begin(ROOM_JSON_URL, ROOMS_DASHBOARD_SHA1_FINGERPRINT);
 
   int httpCode = http.GET();
@@ -132,42 +132,42 @@ void update_from_server()
   String json;
 
   if (httpCode == 200) { //Check the returning code
- 
+
     json = http.getString();
     Serial.println(json);
     deserializeJson(doc, json);
 
     // Should we even be switched on?
     enable_presence_device = doc["enable_presence_device"];
-  
+
     if (enable_presence_device)
     {
 
       current_data_update_interval = DATA_UPDATE_INTERVAL;
-  
+
       // Pluck the pretty colour for the room from the JSON
       JsonArray colour = doc["colour"];
       room_colour_r = colour[0];
       room_colour_g = colour[1];
       room_colour_b = colour[2];
       colour_room = pixels.Color(room_colour_r, room_colour_g, room_colour_b);
-    
+
       // Set the base colour
       set_base_colour(colour_room);
-  
+
       // Some logic about what colour to actually be
-  
+
       empty = doc["empty"];
       minutes_to_next_event = doc["minutes_to_next_event"];
       minutes_to_end_of_event = doc["minutes_to_end_of_event"];
       upcoming_event_today = doc["upcoming_event_today"];
-  
+
       // First of all, are we empty?
       if (empty)
       {
         Serial.println("Room currently empty.");
         set_top_pulsing(false);
-        
+
         // If there an event starting soon?
         if (upcoming_event_today and minutes_to_next_event <= MINUTES_BEFORE_BUSY_TO_WARN)
         {
@@ -189,7 +189,7 @@ void update_from_server()
         {
           Serial.println("Current event ending soon.");
           set_top_colour(COLOUR_MEETING_ENDS_SOON);
-  
+
           // Is there another event coming up soon?
           if (upcoming_event_today and minutes_to_next_event <= MINUTES_BEFORE_BUSY_TO_WARN)
           {
@@ -218,7 +218,7 @@ void update_from_server()
       set_base_colour(COLOUR_OFF);
       set_top_colour(COLOUR_STANDBY);
     }
-  
+
   }
   else
   {
@@ -227,7 +227,7 @@ void update_from_server()
     set_base_colour(COLOUR_OFF);
     set_top_colour(COLOUR_ERROR);
   }
-   
+
   http.end();
 
 }
@@ -247,7 +247,7 @@ void setup()
   // Wifi is delicious
   WiFi.begin(WIFI_NETWORK, WIFI_KEY);
   Serial.print("Connecting");
-  
+
   set_top_pulsing(false);
   set_top_colour(COLOUR_WIFI_CONNECTING);
 
@@ -268,7 +268,7 @@ void setup()
   while (millis() - connected_at < 2500) {
     update_lights();
   }
-  
+
   update_from_server();
 
 }
